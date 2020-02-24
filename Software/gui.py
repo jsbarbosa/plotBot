@@ -1,6 +1,6 @@
 import os
 import sys
-import fontconfig
+# import fontconfig
 import numpy as np
 
 from PIL import Image
@@ -198,13 +198,14 @@ class TextFrame(QFrame):
 
     def get_image(self):
         properties = self.get_font_properties()
-        font_path = FONTS_DICT[properties['font']]
-        font = ImageFont.truetype(font_path, properties['size'])
+        # font_path = FONTS_DICT[properties['font']]
+        # font = ImageFont.truetype(font_path, properties['size'])
         text = self.get_text()
 
         img = Image.new('1', (WIDTH, HEIGHT))
         d = ImageDraw.Draw(img)
-        d.text((0, 0), text, fill=1, font=font)
+        d.text((0, 0), text, fill=1)
+        # d.text((0, 0), text, fill=1, font=font)
 
         img = np.array(img)
         return img
@@ -238,6 +239,7 @@ class FileFrame(QFrame):
                                                 options=QFileDialog.DontUseNativeDialog)
         if name:
             self.lineedit.setText(name)
+
 
 
 class PreviewFrame(QGroupBox):
@@ -283,23 +285,24 @@ class ProgressView(QGroupBox):
 
 def get_fonts():
     global PROGRESS_BAR_VALUE, FONTS_DICT, FONTS
-    fonts = fontconfig.query(lang='en')
-    n_fonts = len(fonts)
-    for i in range(n_fonts):
-        PROGRESS_BAR_VALUE = min(round(100 * (i + 1) / n_fonts), 99)
-        if type(fonts[i]) is str:
-            font = fontconfig.FcFont(fonts[i])
-        else:
-            font = fonts[i]
-        if font.family and font.fontformat == 'TrueType':
-            name = dict(font.family)['en']
-            if name not in FONTS_DICT:
-                FONTS_DICT[name] = font.file
-                FONTS.append(name)
+    # fonts = fontconfig.query(lang='en')
+    # n_fonts = len(fonts)
+    # for i in range(n_fonts):
+    #     PROGRESS_BAR_VALUE = min(round(100 * (i + 1) / n_fonts), 99)
+    #     if type(fonts[i]) is str:
+    #         font = fontconfig.FcFont(fonts[i])
+    #     else:
+    #         font = fonts[i]
+    #     if font.family and font.fontformat == 'TrueType':
+    #         name = dict(font.family)['en']
+    #         if name not in FONTS_DICT:
+    #             FONTS_DICT[name] = font.file
+    #             FONTS.append(name)
 
     qfonts = QFontDatabase().families()
-    FONTS = sorted([font for font in FONTS if font in qfonts])
-    FONTS_DICT = dict([(font, FONTS_DICT[font]) for font in FONTS])
+    FONTS = qfonts
+    # FONTS = sorted([font for font in FONTS if font in qfonts])
+    # FONTS_DICT = dict([(font, FONTS_DICT[font]) for font in FONTS])
     PROGRESS_BAR_VALUE = 100
 
 
