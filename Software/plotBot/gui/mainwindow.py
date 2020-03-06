@@ -6,7 +6,8 @@ from .dependencies import *
 from .common import get_size_policy
 from .source_frame import SourceFrame
 from .preview_frame import PreviewFrame
-from .progress_frame import ProgressFrame
+from .progress_frame import ProgressFrame, ConnectionFrame
+
 
 pg.setConfigOption('background', None)
 
@@ -27,9 +28,11 @@ class MainWindow(QMainWindow):
         self.view_frame.setLayout(self.view_frame_layout)
 
         self.preview_frame = PreviewFrame()
+        self.connection_frame = ConnectionFrame()
         self.progress_frame = ProgressFrame()
 
         self.view_frame_layout.addWidget(self.preview_frame)
+        self.view_frame_layout.addWidget(self.connection_frame)
         self.view_frame_layout.addWidget(self.progress_frame)
 
         self.update_preview_timer = QTimer()

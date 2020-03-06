@@ -192,7 +192,7 @@ class FileFrame(QFrame):
         self.image_item = pg.ImageItem()
         self.image_widget = pg.ImageView(view=self.image_view,
                                          imageItem=self.image_item)
-        # self.image_widget.ui.histogram.hide()
+        self.image_widget.ui.histogram.hide()
         self.image_widget.ui.roiBtn.hide()
         self.image_widget.ui.menuBtn.hide()
 

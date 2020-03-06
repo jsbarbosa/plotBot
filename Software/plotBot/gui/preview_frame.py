@@ -36,17 +36,4 @@ class PreviewFrame(QGroupBox):
                 return
 
             self.image_widget.setImage(image.T)
-            # contours = measure.find_contours(image.T, 0.0)
-            # for line in self.plot_lines:
-            #     line.clear()
-            #
-            # for contour in contours:
-            #     contour = contour.round().astype(int)
-            #     mask = np.zeros(contour.shape[0], dtype=bool)
-            #     mask[1:] = (np.diff(contour, axis=0) == 0).sum(axis=1) == 2
-            #     contour = np.delete(contour, mask, axis=0)
-            #
-            #     line = self.image_widget.plot(contour[:, 0], contour[:, 1])
-            #     self.plot_lines.append(line)
-
         self.current_image = image
