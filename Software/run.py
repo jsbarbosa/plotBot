@@ -1,3 +1,3 @@
-from plotBot import run
+from plotBot.gui import run
 
 run()

@@ -29,6 +29,9 @@ class MainWindow(QMainWindow):
 
         self.preview_frame = PreviewFrame()
         self.connection_frame = ConnectionFrame()
+        self.connection_frame.set_foreign_start_function(self.start_print)
+        self.connection_frame.set_foreign_stop_function(self.stop_print)
+
         self.progress_frame = ProgressFrame()
 
         self.view_frame_layout.addWidget(self.preview_frame)
@@ -50,3 +53,10 @@ class MainWindow(QMainWindow):
     def update_preview(self):
         img = self.source_frame.get_image()
         self.preview_frame.update(img)
+
+    def start_print(self):
+        self.update_preview_timer.stop()
+        return self.preview_frame.get_image()
+
+    def stop_print(self):
+        self.update_preview_timer.start()

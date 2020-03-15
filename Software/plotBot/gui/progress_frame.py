@@ -1,7 +1,11 @@
+from time import sleep
+from threading import Thread
+
 from .dependencies import *
 from .common import get_size_policy
 from .. import communication
 from .. import constants as pconstants
+from ..path_constructor import path_generator
 
 
 class ConnectionFrame(QGroupBox):
@@ -31,6 +35,10 @@ class ConnectionFrame(QGroupBox):
         self.layout.addRow(QLabel(), self.connect_button)
         self.layout.addRow(QLabel(), self.start_button)
 
+        self.thread = None
+        self.foreign_start_function = None
+        self.foreign_stop_function = None
+
         self.set_device(None)
 
     def set_device(self, device: str):
@@ -46,28 +54,75 @@ class ConnectionFrame(QGroupBox):
             self.start_button.setText(self.START_TEXT)
             self.start_button.setEnabled(True)
 
+    def set_foreign_start_function(self, func):
+        self.foreign_start_function = func
+
+    def set_foreign_stop_function(self, func):
+        self.foreign_stop_function = func
+
     def start_button_handler(self):
         if pconstants.IS_DRAWING:
-            pconstants.IS_DRAWING = False
-            self.start_button.setText(self.START_TEXT)
+            buttonReply = QMessageBox.question(self,
+                                               'Drawing', "Do you want to stop drawing?",
+                                               QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+            if buttonReply == QMessageBox.Yes:
+                pconstants.IS_DRAWING = False
+                self.start_button.setText(self.START_TEXT)
+
         else:
-            pconstants.IS_DRAWING = True
-            self.start_button.setText(self.STOP_TEXT)
+            buttonReply = QMessageBox.question(self,
+                                               'Drawing', "Do you want to start drawing?",
+                                               QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes)
+            if buttonReply == QMessageBox.Yes:
+                pconstants.IS_DRAWING = True
+                self.start_button.setText(self.STOP_TEXT)
+                self.start_thread()
 
     def find_device(self):
         port = communication.find_device()
         self.set_device(port)
+        return port
+
+    def connect_device(self, device: str):
+        pconstants.CURRENT_DEVICE = communication.plotBotPort(device)
 
     def disconnect_device(self):
-        pconstants.CURRENT_DEVICE.close()
+        if pconstants.CURRENT_DEVICE is not None:
+            pconstants.CURRENT_DEVICE.close()
         pconstants.CURRENT_DEVICE = None
         self.set_device(None)
 
     def connect_button_handler(self):
         if pconstants.CURRENT_DEVICE is None:
-            self.find_device()
+            device = self.find_device()
+            self.connect_device(device)
+
         else:
             self.disconnect_device()
+
+    def threaded_method(self):
+        image = self.foreign_start_function()
+        paths = path_generator(image)
+        for path in paths:
+            trials = 0
+            result = False
+            while pconstants.IS_DRAWING and not result:
+                result = pconstants.CURRENT_DEVICE.set_position(*path)
+                if trials == pconstants.NUMBER_OF_PIXEL_TRIALS - 1:
+                    raise(ValueError("Position X{} Y{} Z{} can not be reached".format(*path)))
+                else:
+                    sleep(pconstants.TRIAL_TIMEOUT)
+                trials += 1
+
+        self.foreign_stop_function()
+        self.thread = None
+        pconstants.IS_DRAWING = False
+        self.start_button.setText(self.START_TEXT)
+
+    def start_thread(self):
+        self.thread = Thread(target=self.threaded_method,
+                             daemon=True)
+        self.thread.start()
 
 
 class ProgressFrame(QGroupBox):

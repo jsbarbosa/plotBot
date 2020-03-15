@@ -5,14 +5,26 @@
 #define TEST_ANSWER "plotBot v1.0"
 
 // area in mm
-#define X_ORIGIN 22
-#define Y_ORIGIN -26
-#define INNER_LENGTH 41
-#define OUTER_LENGTH 44
-#define DISTANCE_BETWEEN_ORIGINS 24
+#define X_ORIGIN 23
+#define Y_ORIGIN -15
+#define INNER_LENGTH 39
+#define OUTER_LENGTH 45
+#define DISTANCE_BETWEEN_ORIGINS 26
 
 #define LEFT_FACTOR 0.82
 #define RIGHT_FACTOR 1.20
+
+#define Z_UP 45
+#define Z_DOWN 70
+
+#define X_MIN 10
+#define X_MAX 65
+#define X_RANGE X_MAX - X_MIN
+
+#define Y_MIN 20
+#define Y_MAX 75
+#define Y_RANGE Y_MAX - Y_MIN
+
 
 Servo servo_left; 
 Servo servo_right;
@@ -26,8 +38,6 @@ void setup()
   servo_left.attach(10);
   servo_right.attach(11);
   servo_z.attach(9);
-
-  servo_z.write(0);
 }
 
 String read_command(void)
@@ -55,16 +65,22 @@ float rad2deg(float rad)
   return rad * 180 / PI;
 }
 
+float get_beta(int x, int y)
+{
+  float r2 = x * x + y * y;
+  float r = sqrt(r2);
+  float theta2 = acos((r2 - INNER_LENGTH * INNER_LENGTH - OUTER_LENGTH * OUTER_LENGTH) / (2 * INNER_LENGTH * OUTER_LENGTH));
+
+  return asin(OUTER_LENGTH * sin(theta2) / r);
+}
+
+
 float get_left_angle(int x, int y)
 {
   x = x - X_ORIGIN;
   y = y - Y_ORIGIN;
 
-  float r2 = x * x + y * y;
-  float r = sqrt(r2);
-  float theta2 = acos((r2 - INNER_LENGTH * INNER_LENGTH - OUTER_LENGTH * OUTER_LENGTH) / (2 * INNER_LENGTH * OUTER_LENGTH));
-
-  return asin(OUTER_LENGTH * sin(theta2) / r) + atan2(y, x);
+  return atan2(y, x) + get_beta(x, y);
 }
 
 float get_right_angle(int x, int y)
@@ -72,16 +88,13 @@ float get_right_angle(int x, int y)
   x = x - (X_ORIGIN + DISTANCE_BETWEEN_ORIGINS);
   y = y - Y_ORIGIN;
 
-  float r2 = x * x + y * y;
-  float r = sqrt(r2);
-  float theta2 = acos((r2 - INNER_LENGTH * INNER_LENGTH - OUTER_LENGTH * OUTER_LENGTH) / (2 * INNER_LENGTH * OUTER_LENGTH));
-
-  return atan2(y, x) - asin(OUTER_LENGTH * sin(theta2) / r);
+  return atan2(y, x) - get_beta(x, y);
 }
 
 void get_coordinates(int x, int y, float *theta_left, float *theta_right)
 {
-  *theta_left = rad2deg(get_left_angle(x, y));
+  float rad_left = get_left_angle(x, y);
+  *theta_left = rad2deg(rad_left);
   *theta_right = rad2deg(get_right_angle(x, y));
 }
 
@@ -100,35 +113,62 @@ void loop()
         
     process_code(input, &x, &y, &z);
 
-    get_coordinates(x, y, &theta_left, &theta_right);
+    x += X_MIN;
+    y += Y_MIN;
+
+    if((x < X_MIN) | (x > X_RANGE + X_MIN) | (y < Y_MIN) | (y > Y_RANGE + Y_MIN))
+    { 
+      Serial.println("ERROR");
+    }
+    else
+    {
+      get_coordinates(x, y, &theta_left, &theta_right);
+  
+      servo_left.write(theta_left * LEFT_FACTOR);
+      servo_right.write(theta_right * RIGHT_FACTOR);
+  
+      if (z == 1)
+      {
+        servo_z.write(Z_UP);
+      }
+      else if (z == 0)
+      {
+        servo_z.write(Z_DOWN);
+      }
+
+      Serial.println("OK");
+    }
     
+
+    /*    
     if (x >= 0)
     {
-//      servo_left.write(x * LEFT_FACTOR);
       servo_left.write(theta_left * LEFT_FACTOR);
     }
 
     if (y >= 0)
     {
-//      servo_right.write(y * RIGHT_FACTOR);
       servo_right.write(theta_right * RIGHT_FACTOR);
     }
 
     if (z == 1)
     {
-      servo_z.write(50);
+      servo_z.write(Z_UP);
     }
     else if (z == 0)
     {
-      servo_z.write(60);
+      servo_z.write(Z_DOWN);
+    }
+
+    if((theta_left == theta_right) & (theta_left == 0))
+    {
+      Serial.println("Error");
     }
     
-    if((x != -1) | (y != -1) | (z != -1))
+    else
     {
-      char message[24];
-      
-      sprintf(message, "OK left: %d right: %d", (int) theta_left, (int) theta_right);
-      Serial.println(message);
+      Serial.println("OK");
     }
+    */
   }
 }

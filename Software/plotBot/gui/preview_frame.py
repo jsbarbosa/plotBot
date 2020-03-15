@@ -37,3 +37,6 @@ class PreviewFrame(QGroupBox):
 
             self.image_widget.setImage(image.T)
         self.current_image = image
+
+    def get_image(self):
+        return self.current_image
