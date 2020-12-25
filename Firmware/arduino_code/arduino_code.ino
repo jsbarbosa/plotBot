@@ -4,27 +4,43 @@
 #define TEST_MESSAGE "*IDN?"
 #define TEST_ANSWER "plotBot v1.0"
 
-// area in mm
-#define X_ORIGIN 23
-#define Y_ORIGIN -15
-#define INNER_LENGTH 39
-#define OUTER_LENGTH 45
-#define DISTANCE_BETWEEN_ORIGINS 26
+//#define CALIBRATION
 
-#define LEFT_FACTOR 0.82
+// origin points of left and right servo
+// from the lower left corner
+#define O1X 24
+#define O1Y -25
+#define O2X 49
+#define O2Y -25
+
+// length of arms
+#define L1 35
+#define L4 45
+#define L3 17
+
+#define L2 sqrt(pow(L4 + L3 * cos(M_PI / 4), 2) + pow(L3 * sin(M_PI / 4), 2))
+
+// calibration of servos
+#define LEFT_ZERO 35
+#define RIGHT_ZERO 20
+
+#define LEFT_FACTOR 1.05
 #define RIGHT_FACTOR 1.20
 
 #define Z_UP 45
 #define Z_DOWN 70
 
-#define X_MIN 10
-#define X_MAX 65
-#define X_RANGE X_MAX - X_MIN
+//#define X_MIN 10
+//#define X_MAX 65
+//#define X_RANGE X_MAX - X_MIN
+//
+//#define Y_MIN 20
+//#define Y_MAX 75
+//#define Y_RANGE Y_MAX - Y_MIN
 
-#define Y_MIN 20
-#define Y_MAX 75
-#define Y_RANGE Y_MAX - Y_MIN
-
+#define LEFT_PIN 10
+#define RIGHT_PIN 11
+#define Z_PIN 9
 
 Servo servo_left; 
 Servo servo_right;
@@ -34,10 +50,21 @@ void setup()
 {
   Serial.begin(9600);
   Serial.setTimeout(50);
+  attach_servos();
+}
 
-  servo_left.attach(10);
-  servo_right.attach(11);
-  servo_z.attach(9);
+void attach_servos(void)
+{
+  servo_left.attach(LEFT_PIN);
+  servo_right.attach(RIGHT_PIN);
+  servo_z.attach(Z_PIN);
+}
+
+void detach_servos(void)
+{
+  servo_left.detach();
+  servo_right.detach();
+  servo_z.detach();
 }
 
 String read_command(void)
@@ -65,41 +92,74 @@ float rad2deg(float rad)
   return rad * 180 / PI;
 }
 
-float get_beta(int x, int y)
+float return_angle(float a, float b, float c)
 {
-  float r2 = x * x + y * y;
-  float r = sqrt(r2);
-  float theta2 = acos((r2 - INNER_LENGTH * INNER_LENGTH - OUTER_LENGTH * OUTER_LENGTH) / (2 * INNER_LENGTH * OUTER_LENGTH));
-
-  return asin(OUTER_LENGTH * sin(theta2) / r);
-}
-
-
-float get_left_angle(int x, int y)
-{
-  x = x - X_ORIGIN;
-  y = y - Y_ORIGIN;
-
-  return atan2(y, x) + get_beta(x, y);
-}
-
-float get_right_angle(int x, int y)
-{
-  x = x - (X_ORIGIN + DISTANCE_BETWEEN_ORIGINS);
-  y = y - Y_ORIGIN;
-
-  return atan2(y, x) - get_beta(x, y);
+  return acos((a * a + c * c - b * b) / (2 * a * c));
 }
 
 void get_coordinates(int x, int y, float *theta_left, float *theta_right)
 {
-  float rad_left = get_left_angle(x, y);
-  *theta_left = rad2deg(rad_left);
-  *theta_right = rad2deg(get_right_angle(x, y));
+  // LEFT ARM
+  int dx, dy;
+  float c, a1, a2, hx, hy;
+  
+  dx = x - O1X;
+  dy = y - O1Y;
+
+  c = sqrt(dx * dx + dy * dy);
+  a1 = atan2(dy, dx);
+  a2 = return_angle(L1, L2, c);
+
+  *theta_left = rad2deg(a1 + a2);
+  
+  // RIGHT ARM
+
+  a2 = return_angle(L2, L1, c);
+  hx = x + L3 * cos(a1 - a2 + M_PI / 4 + M_PI); // PI / 4 angle of pen holder 
+  hy = y + L3 * sin(a1 - a2 + M_PI / 4 + M_PI);
+
+  dx = hx - O2X;
+  dy = hy - O2Y;
+
+  c = sqrt(dx * dx + dy * dy);
+  a1 = atan2(dy, dx);
+  a2 = return_angle(L1, L4, c);
+
+  *theta_right = rad2deg(a1 - a2);
+}
+
+void write_left(int x)
+{
+  servo_left.write(180 - (x * LEFT_FACTOR + LEFT_ZERO));
+}
+
+void write_right(int x)
+{
+  servo_right.write(x * RIGHT_FACTOR + RIGHT_ZERO);
+}
+
+void write_position(int left, int right, int z)
+{
+//  attach_servos();
+  
+  write_left(left);
+  write_right(right);
+  servo_z.write(z);
+
+//  delay(250);
+
+//  detach_servos();
 }
 
 void loop()
 {
+  #ifdef CALIBRATION
+  write_position(0, 0, Z_UP);
+  delay(2000);
+  write_position(90, 90, Z_UP);
+  delay(2000);
+
+  #else  
   String input = read_command();
   if(input == TEST_MESSAGE)
   {
@@ -113,19 +173,19 @@ void loop()
         
     process_code(input, &x, &y, &z);
 
-    x += X_MIN;
-    y += Y_MIN;
-
-    if((x < X_MIN) | (x > X_RANGE + X_MIN) | (y < Y_MIN) | (y > Y_RANGE + Y_MIN))
-    { 
-      Serial.println("ERROR");
-    }
-    else
-    {
+//    x += X_MIN;
+//    y += Y_MIN;
+//
+//    if((x < X_MIN) | (x > X_RANGE + X_MIN) | (y < Y_MIN) | (y > Y_RANGE + Y_MIN))
+//    { 
+//      Serial.println("ERROR");
+//    }
+//    else
+//    {
       get_coordinates(x, y, &theta_left, &theta_right);
   
-      servo_left.write(theta_left * LEFT_FACTOR);
-      servo_right.write(theta_right * RIGHT_FACTOR);
+      write_left(theta_left);
+      write_right(theta_right);
   
       if (z == 1)
       {
@@ -137,38 +197,7 @@ void loop()
       }
 
       Serial.println("OK");
-    }
-    
-
-    /*    
-    if (x >= 0)
-    {
-      servo_left.write(theta_left * LEFT_FACTOR);
-    }
-
-    if (y >= 0)
-    {
-      servo_right.write(theta_right * RIGHT_FACTOR);
-    }
-
-    if (z == 1)
-    {
-      servo_z.write(Z_UP);
-    }
-    else if (z == 0)
-    {
-      servo_z.write(Z_DOWN);
-    }
-
-    if((theta_left == theta_right) & (theta_left == 0))
-    {
-      Serial.println("Error");
-    }
-    
-    else
-    {
-      Serial.println("OK");
-    }
-    */
+//    }
   }
+  #endif
 }
